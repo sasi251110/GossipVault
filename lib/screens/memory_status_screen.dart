@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 
 import '../core/memory_tier.dart';
 import '../core/model_manager.dart';
+import '../models/model_bootstrap.dart';
 import '../theme/vault_theme.dart';
+import '../widgets/model_download_card.dart';
 import '../widgets/vault_widgets.dart';
 
-/// Lives in the Vault tab for now. This is the device-memory spike screen.
+/// Vault tab: device memory diagnostics and model status.
 class MemoryStatusScreen extends StatefulWidget {
   const MemoryStatusScreen({super.key});
 
@@ -55,10 +57,12 @@ class _MemoryStatusScreenState extends State<MemoryStatusScreen> {
           Text('Vault', style: theme.textTheme.headlineMedium),
           const SizedBox(height: 4),
           Text(
-            'Device memory diagnostics (spike)',
+            'Device memory and models (spike)',
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: VaultColors.mutedInk),
           ),
+          const SizedBox(height: 16),
+          ModelDownloadCard(controller: appModel),
           const SizedBox(height: 16),
           VaultCard(
             child: s == null
@@ -91,7 +95,7 @@ class _MemoryStatusScreenState extends State<MemoryStatusScreen> {
             height: 48,
             child: FilledButton(
               onPressed: _refresh,
-              child: const Text('Refresh'),
+              child: const Text('Refresh memory'),
             ),
           ),
         ],
