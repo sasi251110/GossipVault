@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      zip_url:
+        description: 'Optional: direct download URL of a zip to unzip before building'
+        required: false
+        default: ''
 
 concurrency:
   group: build-apk-${{ github.ref }}
@@ -19,12 +24,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch zip from URL (manual runs only)
+        if: inputs.zip_url != ''
+        env:
+          ZIP_URL: ${{ inputs.zip_url }}
+        run: |
+          mkdir -p incoming
+          curl -fL --retry 3 -o incoming/upload.zip "$ZIP_URL"
+
+      - name: Unzip uploaded project into the workspace
+        # Looks for any *.zip in incoming/ and extracts it over the repo root.
+        # Handles zips with files at the top level or inside one folder.
+        run: |
+          shopt -s nullglob
+          ZIPS=(incoming/*.zip)
+          if [ ${#ZIPS[@]} -eq 0 ]; then
+            echo "No zip in incoming/. Building the repo as committed."
+            exit 0
+          fi
+          for z in "${ZIPS[@]}"; do
+            echo "Extracting $z"
+            STAGE=$(mktemp -d)
+            unzip -q "$z" -d "$STAGE"
+            SRC="$STAGE"
+            TOP=$(find "$STAGE" -mindepth 1 -maxdepth 1)
+            if [ "$(echo "$TOP" | wc -l)" -eq 1 ] && [ -d "$TOP" ]; then
+              SRC="$TOP"
+            fi
+            # -a keeps hidden folders such as .github
+            cp -a "$SRC"/. .
+            rm -rf "$STAGE"
+          done
+          rm -rf incoming
+          echo "Unzip complete"
+
       - name: Verify repo layout
         run: |
-          for f in pubspec.yaml lib/main.dart test/memory_tier_test.dart \
+          for f in pubspec.yaml \
+                   lib/main.dart \
+                   lib/models/model_spec.dart \
+                   lib/models/model_store.dart \
+                   lib/models/model_downloader.dart \
+                   lib/models/model_controller.dart \
+                   lib/widgets/model_download_card.dart \
+                   test/memory_tier_test.dart \
+                   test/model_downloader_test.dart \
+                   assets/images/logo_mark.png assets/images/logo_lockup.png \
+                   assets/images/app_icon.png assets/images/app_icon_foreground.png \
                    android_overlay/app/src/main/kotlin/com/gossipvault/gossipvault/MainActivity.kt; do
             if [ ! -f "$f" ]; then
-              echo "::error::Missing $f. Repo root must contain pubspec.yaml, lib/, test/, android_overlay/ side by side."
+              echo "::error::Missing $f. Repo root must contain pubspec.yaml, lib/, test/, assets/, android_overlay/ side by side."
               find . -path ./.git -prune -o -type f -print | head -100
               exit 1
             fi
@@ -48,6 +97,16 @@ jobs:
           flutter create --platforms=android --org com.gossipvault --project-name gossipvault .
           rm -f test/widget_test.dart
 
+      - name: Add INTERNET permission to release manifest
+        # Flutter's template only declares INTERNET in debug and profile manifests.
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'android.permission.INTERNET' "$M"; then
+            sed -i '0,/<manifest[^>]*>/s//&\n    <uses-permission android:name="android.permission.INTERNET" \/>/' "$M"
+          fi
+          grep -q 'android.permission.INTERNET' "$M" || { echo "::error::INTERNET permission not added"; exit 1; }
+          echo "INTERNET permission present"
+
       - name: Apply custom MainActivity
         run: |
           DEST=android/app/src/main/kotlin/com/gossipvault/gossipvault
@@ -56,6 +115,9 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
 
       - name: Static analysis
         run: flutter analyze --no-fatal-infos
