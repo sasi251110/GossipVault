@@ -1,0 +1,73 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android platform files
+        # Repo holds lib/, test/, pubspec.yaml, and android_overlay/ only.
+        # flutter create fills in android/ without overwriting lib/.
+        run: |
+          flutter create --platforms=android --org com.gossipvault --project-name gossipvault .
+          # Remove the default widget test; it references the template app.
+          rm -f test/widget_test.dart
+
+      - name: Apply custom MainActivity
+        run: |
+          cp android_overlay/app/src/main/kotlin/com/gossipvault/gossipvault/MainActivity.kt \
+             android/app/src/main/kotlin/com/gossipvault/gossipvault/MainActivity.kt
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze --no-fatal-infos
+
+      - name: Unit tests
+        run: flutter test
+
+      - name: Build release APKs
+        run: flutter build apk --release --split-per-abi
+
+      - name: Record APK checksums
+        run: |
+          cd build/app/outputs/flutter-apk
+          sha256sum *.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: gossipvault-apks-${{ github.sha }}
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/flutter-apk/SHA256SUMS.txt
+          retention-days: 14
+          if-no-files-found: error
