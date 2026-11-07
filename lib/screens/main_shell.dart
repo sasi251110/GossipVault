@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/model_bootstrap.dart';
 import 'home_screen.dart';
 import 'memory_status_screen.dart';
 import 'placeholder_screen.dart';
@@ -15,6 +16,13 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Starts the model download (or resumes it) in the background.
+    ensureModelReady();
+  }
 
   @override
   Widget build(BuildContext context) {
