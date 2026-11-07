@@ -1,7 +1,7 @@
 name: gossipvault
-description: GossipVault memory-validation spike (no AI yet).
+description: GossipVault private diary and companion (spike build).
 publish_to: none
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -13,6 +13,24 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/logo_lockup.png
+    - assets/images/logo_mark.png
+  # Uncomment after adding the font files listed in assets/fonts/README.txt.
+  # fonts:
+  #   - family: Plus Jakarta Sans
+  #     fonts:
+  #       - asset: assets/fonts/PlusJakartaSans-Variable.ttf
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Variable.ttf
+
+flutter_launcher_icons:
+  android: true
+  image_path: assets/images/app_icon.png
+  adaptive_icon_background: "#08080B"
+  adaptive_icon_foreground: assets/images/app_icon_foreground.png

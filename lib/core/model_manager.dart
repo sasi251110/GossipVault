@@ -16,9 +16,11 @@ class ModelManager {
   }
 
   Future<MemorySnapshot> memorySnapshot() => _serialized(() async {
-        final raw = await _channel.invokeMapMethod<String, dynamic>('getMemoryInfo');
+        final raw =
+            await _channel.invokeMapMethod<String, dynamic>('getMemoryInfo');
         if (raw == null) {
-          throw PlatformException(code: 'NULL', message: 'No memory info returned');
+          throw PlatformException(
+              code: 'NULL', message: 'No memory info returned');
         }
         return MemorySnapshot(
           availMb: raw['availMb'] as int,
